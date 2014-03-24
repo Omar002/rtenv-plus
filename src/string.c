@@ -2,6 +2,12 @@
 
 #include "stm32f10x.h"
 
+/* needed by gdb */
+void* malloc(void)
+{
+	static char m[128]={0};
+	return m;
+}
 
 char *strcpy(char *s1, const char *s2)
 {
