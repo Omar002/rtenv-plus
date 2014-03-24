@@ -3,6 +3,18 @@
 #include "stm32f10x.h"
 
 
+char *strcpy(char *s1, const char *s2)
+{
+	asm(
+		"strcpy_lop:				\n"
+		"	ldrb 	r2,	[r1],	#1	\n"
+		"	strb 	r2,	[r0],	#1	\n"
+		"	cmp		r2,	#0			\n"
+		"	bne		strcpy_lop		\n"
+		"	bx		lr				\n"
+		:::
+		);
+}
 
 int strcmp(const char *a, const char *b)
 {
