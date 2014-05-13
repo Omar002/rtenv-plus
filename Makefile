@@ -4,38 +4,40 @@ TARGET = main
 CROSS_COMPILE ?= arm-none-eabi-
 CC := $(CROSS_COMPILE)gcc
 CFLAGS = -fno-common -ffreestanding -O0 \
+			-fno-builtin \
          -gdwarf-2 -g3 -Wall -Werror \
-         -mcpu=cortex-m3 -mthumb \
+         -mcpu=cortex-m4 -mthumb \
          -Wl,-Tmain.ld -nostartfiles \
-         -DUSER_NAME=\"$(USER)\"
+         -DUSER_NAME=\"$(USER)\" \
+         -DSTM32F429_439xx -DUSE_STDPERIPH_DRIVER -march=armv7e-m -mtune=cortex-m4 -mlittle-endian
 
-ARCH = CM3
+ARCH = CM4
 VENDOR = ST
-PLAT = STM32F10x
+PLAT = STM32F4xx
 
 LIBDIR = .
-CMSIS_LIB=$(LIBDIR)/libraries/CMSIS/$(ARCH)
-STM32_LIB=$(LIBDIR)/libraries/STM32F10x_StdPeriph_Driver
+CMSIS_LIB=$(LIBDIR)/libraries/CMSIS
+STM32_LIB=$(LIBDIR)/libraries/STM32F4xx_StdPeriph_Driver
 
-CMSIS_PLAT_SRC = $(CMSIS_LIB)/DeviceSupport/$(VENDOR)/$(PLAT)
+CMSIS_PLAT_SRC = $(CMSIS_LIB)/Device/$(VENDOR)/$(PLAT)
 
 
 OUTDIR = build
 SRCDIR = src \
          $(CMSIS_LIB)/CoreSupport \
          $(STM32_LIB)/src \
-         $(CMSIS_PLAT_SRC)
+         $(CMSIS_PLAT_SRC)/Source/Templates
 INCDIR = include \
-         $(CMSIS_LIB)/CoreSupport \
+         $(CMSIS_LIB)/Include \
          $(STM32_LIB)/inc \
-         $(CMSIS_PLAT_SRC)
+         $(CMSIS_PLAT_SRC)/Include
 INCLUDES = $(addprefix -I,$(INCDIR))
 DATDIR = data
 TOOLDIR = tool
 
 SRC = $(wildcard $(addsuffix /*.c,$(SRCDIR))) \
       $(wildcard $(addsuffix /*.s,$(SRCDIR))) \
-      $(CMSIS_PLAT_SRC)/startup/gcc_ride7/startup_stm32f10x_md.s
+      $(CMSIS_PLAT_SRC)/Source/Templates/gcc_ride7/startup_stm32f429_439xx.s
 OBJ := $(addprefix $(OUTDIR)/,$(patsubst %.s,%.o,$(SRC:.c=.o)))
 DEP = $(OBJ:.o=.o.d)
 DAT =
@@ -64,11 +66,14 @@ $(OUTDIR)/%.o: %.c
 	@mkdir -p $(dir $@)
 	@echo "    CC      "$@
 	@$(CROSS_COMPILE)gcc $(CFLAGS) -MMD -MF $@.d -o $@ -c $(INCLUDES) $<
-
+	
 $(OUTDIR)/%.o: %.s
 	@mkdir -p $(dir $@)
 	@echo "    CC      "$@
 	@$(CROSS_COMPILE)gcc $(CFLAGS) -MMD -MF $@.d -o $@ -c $(INCLUDES) $<
+
+flash:$(OUTDIR)/$(TARGET).bin
+	st-flash write $(OUTDIR)/$(TARGET).bin 0x8000000
 
 clean:
 	rm -rf $(OUTDIR)

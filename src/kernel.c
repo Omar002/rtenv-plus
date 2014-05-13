@@ -1,11 +1,9 @@
 #include "kconfig.h"
 #include "kernel.h"
-#include "stm32f10x.h"
 #include "stm32_p103.h"
 #include "RTOSConfig.h"
-
+#include "stm32f4xx.h"
 #include "syscall.h"
-
 #include <stddef.h>
 #include <ctype.h>
 #include <string.h>
