@@ -6,6 +6,9 @@
 	.global USART2_IRQHandler
 SysTick_Handler:
 USART2_IRQHandler:
+	/* disable global interupt */
+	cpsid i
+
 	mrs r0, psp
 	stmdb r0!, {r7}
 
@@ -51,4 +54,6 @@ activate:
 	mov r0, #3
 	msr control, r0
 
+	/* enable global interupt */
+	cpsie i
 	bx lr
