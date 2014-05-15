@@ -94,21 +94,19 @@ void serialout(USART_TypeDef* uart, unsigned int intr)
 {
 	int fd;
 	char c;
-	int doread = 1;
 	mkfifo("/dev/tty0/out", 0);
 	fd = open("/dev/tty0/out", 0);
 
 	while (1) {
-		if (doread)
-			read(fd, &c, 1);
-		doread = 0;
-		if (USART_GetFlagStatus(uart, USART_FLAG_TXE) == SET) {
-			USART_SendData(uart, c);
-			USART_ITConfig(USART2, USART_IT_TXE, ENABLE);
-			doread = 1;
-		}
-		interrupt_wait(intr);
+		read(fd, &c, 1);
+    	
+		USART_ITConfig(USART2, USART_IT_TXE, ENABLE);
+		while (USART_GetFlagStatus(uart, USART_FLAG_TXE) != SET) {
+    		interrupt_wait(intr);
+    	}
 		USART_ITConfig(USART2, USART_IT_TXE, DISABLE);
+    	
+    	USART_SendData(USART2, c);
 	}
 }
 
