@@ -701,20 +701,62 @@ void show_xxd(int argc, char *argv[])
     }
 }
 
+#include "timer.h"
+/* declare time for measure system efficency */
+unsigned long startTime;
+unsigned long endTime;
+unsigned long cycle;
+int timerValue;
+int eTime;
+void task1()
+{
+	/* low priority */
+	setpriority(0, 20);
+	
+	int i = 0;
+	while (1) {
+		/* do something time comsuming */
+		i++;
+	}
+}
+
+void task2()
+{
+	/* middle priority */
+	setpriority(0, 10);
+	
+	while (1) {
+		/* wait for random time */
+		sleep(100);
+
+		/* record start time */
+		startTime = TIM_GetCounter(TIM2);
+
+		/* trigger interrupt */
+		NVIC->STIR |= EXTI0_IRQn;
+	}
+}
+void task3()
+{
+	/* high priority */
+	setpriority(0, 0);
+	
+	while(1){
+		/* wait interrupt */
+		interrupt_wait(EXTI0_IRQn);
+
+		/* record end time */
+		endTime = TIM_GetCounter(TIM2);
+		eTime = endTime - startTime;
+	}
+}
+
 
 void first()
 {
-	if (!fork()) setpriority(0, 0), pathserver();
-	if (!fork()) setpriority(0, 0), romdev_driver();
-	if (!fork()) setpriority(0, 0), romfs_server();
-	if (!fork()) setpriority(0, 0), serialout(USART2, USART2_IRQn);
-	if (!fork()) setpriority(0, 0), serialin(USART2, USART2_IRQn);
-	if (!fork()) rs232_xmit_msg_task();
-	if (!fork()) setpriority(0, PRIORITY_DEFAULT - 10), serial_test_task();
-
-	setpriority(0, PRIORITY_LIMIT);
-
-	mount("/dev/rom0", "/", ROMFS_TYPE, 0);
+	if (!fork()) task3();
+	if (!fork()) task1();
+	if (!fork()) task2();
 
 	while(1);
 }
@@ -759,10 +801,15 @@ int main()
 	unsigned int tick_count = 0;
 
 	SysTick_Config(configCPU_CLOCK_HZ / configTICK_RATE_HZ);
-
+	
+	SCB->CCR |= SCB_CCR_USERSETMPEND_Msk;
+	
 	init_rs232();
 	__enable_irq();
-
+	TIMER_cfg();
+	EnableTimerInterrupt();
+	EXTILine0_Config();
+	
     /* Initialize memory pool */
     memory_pool_init(&memory_pool, MEM_LIMIT, memory_space);
 
@@ -796,10 +843,13 @@ int main()
 	task_count++;
 
 	while (1) {
+		/* record end time */
 		tasks[current_task].stack = activate(tasks[current_task].stack);
 		tasks[current_task].status = TASK_READY;
 		timeup = 0;
-
+		 
+		/* show time from interrupt triggered to begin handling */
+		eTime = endTime - startTime;
 		switch (tasks[current_task].stack->r7) {
 		case 0x1: /* fork */
 			if (task_count == TASK_LIMIT) {
@@ -924,9 +974,9 @@ int main()
 		case 0x9: /* sleep */
 			if (tasks[current_task].stack->r0 != 0) {
 				tasks[current_task].stack->r0 += tick_count;
-				tasks[current_task].status = TASK_WAIT_TIME;
 			    event_monitor_block(&event_monitor, TIME_EVENT,
 			                        &tasks[current_task]);
+				tasks[current_task].status = TASK_WAIT_TIME;
 			}
 			break;
 		case 0xa: /* lseek */
@@ -970,7 +1020,9 @@ int main()
 
         /* Rearrange ready list and event list */
 		event_monitor_serve(&event_monitor);
-
+		
+		/* record start time */
+		
 		/* Check whether to context switch */
 		task = &tasks[current_task];
 		if (timeup && ready_list[task->priority].next == &task->list)

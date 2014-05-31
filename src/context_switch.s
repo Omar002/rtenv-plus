@@ -4,8 +4,11 @@
 	.global SysTick_Handler
 	.type	USART2_IRQHandler, %function
 	.global USART2_IRQHandler
+	.type EXTI0_IRQHandler, %function
+	.global EXTI0_IRQHandler
 SysTick_Handler:
 USART2_IRQHandler:
+EXTI0_IRQHandler:
 	/* disable global interupt */
 	cpsid i
 

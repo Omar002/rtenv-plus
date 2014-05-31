@@ -3,3 +3,15 @@ file build/main.elf
 target remote :3333
 set debug timestamp on
 set logging on
+set pagination off
+monitor reset halt
+
+
+b kernel.c:751
+
+commands
+p startTime
+p endTime
+p eTime
+c
+end
